@@ -1,44 +1,44 @@
 #include "Dense.h"
 #include <cmath>
+#include <iostream>
 
 Dense::Dense(size_t inputSize, size_t outputSize)
     : inputSize(inputSize), outputSize(outputSize),
-      weights(Tensor::zeros({outputSize, inputSize})),
-      biases(Tensor::zeros({outputSize})),
-      gradWeights(Tensor::zeros({outputSize, inputSize})),
-      gradBiases(Tensor::zeros({outputSize}))
+      weights({inputSize, outputSize}),
+      biases({outputSize}),
+      gradWeights({inputSize, outputSize}),
+      gradBiases({outputSize})
 {
     float limit = std::sqrt(6.0f / (inputSize + outputSize));
     weights.randomize(-limit, limit);
     biases.fill(0.0f);
 }
 
-Tensor Dense::forward(const Tensor& input) {
-    inputCache = input; // Cache the input for backward pass
+Tensor Dense::forward(const Tensor& input)
+{
+    std::cout << "Dense forward\n";
+    std::cout << "input: "
+              << input.getShape()[0] << " "
+              << input.getShape()[1] << std::endl;
 
-    size_t batch = input.getShape()[0];
-    size_t features = input.getShape()[1];
+    std::cout << "weights: "
+              << weights.getShape()[0] << " "
+              << weights.getShape()[1] << std::endl;
 
-    if(features != inputSize){
-        throw std::invalid_argument("Input size does not match layer's input size");
-    }
+    inputCache = input;
 
-    Tensor output({batch, outputSize});
-    output = input.matmul(weights.transpose()).broadcastAdd(biases);
-    return output;
+    return input.matmul(weights)
+               .broadcastAdd(biases);
 }
 
 Tensor Dense::backward(const Tensor& gradOutput) {
-    if(gradOutput.getShape()[0] != outputSize){
-        throw std::invalid_argument("Gradient output size does not match layer's output size");
-    }
 
-    // Compute gradients
-    gradWeights = gradOutput.matmul(inputCache.transpose());
-    gradBiases = gradOutput;
+    gradWeights = inputCache.transpose().matmul(gradOutput);
 
-    // Compute gradient with respect to input
-    Tensor gradInput = weights.transpose().matmul(gradOutput);
+    gradBiases = gradOutput.sum(0);
+
+    Tensor gradInput = gradOutput.matmul(weights.transpose());
+
     return gradInput;
 }
 

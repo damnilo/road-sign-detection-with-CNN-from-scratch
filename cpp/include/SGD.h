@@ -12,4 +12,6 @@ public:
     SGD(float learningRate, float momentum = 0.0f);
 
     void update(std::vector<Tensor*>& params, std::vector<Tensor*>& grads);
+    void setLearningRate(float newLearningRate);
+    float getLearningRate() const;
 };

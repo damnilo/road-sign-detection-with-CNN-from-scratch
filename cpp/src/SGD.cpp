@@ -21,3 +21,11 @@ void SGD::update(std::vector<Tensor*>& params, std::vector<Tensor*>& grads) {
         }
     }
 }
+
+void SGD::setLearningRate(float newLearningRate) {
+    learningRate = newLearningRate;
+}
+
+float SGD::getLearningRate() const {
+    return learningRate;
+}

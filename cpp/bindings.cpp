@@ -108,17 +108,19 @@ PYBIND11_MODULE(cpp, m) {
     
     py::class_<Network>(m, "Network")
         .def(py::init<>())
-        .def("addLayer", &Network::addLayer)
+        .def("addLayer", [](Network& net, std::shared_ptr<Layer> layer) { net.addLayer(layer); })
         .def("forward", &Network::forward)
         .def("backward", &Network::backward)
-        .def("parameters", &Network::parameters)
-        .def("gradients", &Network::gradients)
         .def("numLayers", &Network::numLayers)
-        .def("getLayer", &Network::getLayer, py::return_value_policy::reference);
+        .def("getLayer", &Network::getLayer, py::return_value_policy::reference)
+        .def("parameters", &Network::parameters)
+        .def("gradients", &Network::gradients);
 
     py::class_<SGD>(m, "SGD")
         .def(py::init<float, float>(), py::arg("learningRate"), py::arg("momentum") = 0.0f)
-        .def("update", &SGD::update);
+        .def("update", &SGD::update)
+        .def("setLearningRate", &SGD::setLearningRate)
+        .def("getLearningRate", &SGD::getLearningRate);
     
     py::class_<Serialization>(m, "Serialization")
         .def_static("saveNetwork", &Serialization::saveNetwork)

@@ -11,17 +11,10 @@ import numpy as np
 import cpp
 
 def numpy_to_tensor(np_array):
-    t = cpp.Tensor(list(np_array.shape))
-    for idx in np.ndindex(np_array.shape):
-        t[idx] = np_array[idx]
-    return t
+    return cpp.Tensor(np_array.astype(np.float32))
 
 def tensor_to_numpy(tensor):
-    shape = tensor.getShape()
-    np_array = np.zeros(shape, dtype=np.float32)
-    for idx in np.ndindex(*shape):
-        np_array[idx] = tensor[idx]
-    return np_array
+    return tensor.to_numpy().astype(np.float32)
 
 def create_network():
     net = cpp.Network()
@@ -44,53 +37,103 @@ def create_network():
 
     return net, loss, optimizer
 
+def clip_gradients(grads, clip_value=1.0):
+    for g in grads:
+        data = g.to_numpy()
+        norm = np.linalg.norm(data)
+
+        if norm > clip_value:
+            scale = clip_value / norm
+
+            for i in np.ndindex(data.shape):
+                g[i] *= scale
+
 def train():
     X_train, y_train, X_val, y_val = load_test_data()
-    y_train_oh = np.eye(NUM_CATEGORIES)[y_train]
-    y_val_oh = np.eye(NUM_CATEGORIES)[y_val]
+    y_train_one_hot = np.eye(NUM_CATEGORIES)[y_train]
+    y_val_one_hot = np.eye(NUM_CATEGORIES)[y_val]
+
+    X_train = X_train.astype(np.float32)
+    X_val = X_val.astype(np.float32)
+    
+    mean = np.mean(X_train, axis=(0, 1, 2))
+    std = np.std(X_train, axis=(0, 1, 2))
+
+    X_train = (X_train - mean) / std
+    X_val = (X_val - mean) / std
 
     net, loss, optimizer = create_network()
+
+    params = net.parameters()
+    grads = net.gradients()
+
     best_acc = 0.0
-    
-    EPOCHS = 10
+
+    EPOCHS = 30
+    BATCH_SIZE = 64
+
+    learning_rate_decay = 0.95
+
     for epoch in range(EPOCHS):
-        perm = np.random.permutation(len(X_train))
-        total_loss = 0
-        t0 = time.time()
+        start_time = time.time()
+        permutation = np.random.permutation(len(X_train))
+        epoch_loss = 0.0
+        batches = 0
 
-        for n, i in enumerate(perm):
-            x = numpy_to_tensor(X_train[i:i+1])
-            y_true = numpy_to_tensor(y_train_oh[i:i+1])
+        for i in range(0, len(X_train), BATCH_SIZE):
+            if i % 20 == 0:
+                print(f"Epoch {epoch+1}/{EPOCHS}, Batch {i//BATCH_SIZE + 1}/{len(X_train)//BATCH_SIZE}")
 
-            y_pred = net.forward(x)
-            loss_value = loss.forward(y_pred, y_true)
-            total_loss += loss_value
+            batch_indices = permutation[i:i+BATCH_SIZE]
 
-            grad_loss = loss.backward(y_pred, y_true)
+            X_batch = X_train[batch_indices]
+            y_batch = y_train_one_hot[batch_indices]
+
+            X_tensor = numpy_to_tensor(X_batch)
+            y_tensor = numpy_to_tensor(y_batch)
+
+            predictions = net.forward(X_tensor)
+            print("aaa")
+            loss_value = loss.forward(predictions, y_tensor)
+            print("bbb")
+            epoch_loss += loss_value
+            batches += 1
+
+            grad_loss = loss.backward()
+            print("ccc")
             net.backward(grad_loss)
-            optimizer.update(net.parameters(), net.gradients())
+            print("ddd")
+            optimizer.update(params, grads)
+            print("eee")
+        print("aaa")            
 
-            if n % 500 == 0:
-                print(f"Epoch {epoch+1}/{EPOCHS}, Step {n}/{len(X_train)}, Loss: {total_loss/(n+1):.4f}")
+        avg_loss = epoch_loss / batches
+        print("bbb")
+        val_acc = evaluate(net, X_val, y_val)
+        print("ccc")
+        print(f"Epoch {epoch+1}/{EPOCHS}, Validation Accuracy: {val_acc * 100:.2f}%, Loss: {avg_loss:.4f}, Time: {time.time() - start_time:.2f}s")
 
-        avg_loss = total_loss / len(X_train)
-        acc = evaluate(net, X_val, y_val)
-        print(f"Epoch {epoch+1}/{EPOCHS} completed in {time.time() - t0:.2f}s, Average Loss: {avg_loss:.4f}, Validation Accuracy: {acc:.4f}, Time per epoch: {time.time() - t0:.2f}s")
+        if val_acc > best_acc:
+            best_acc = val_acc
+            cpp.Serialization.saveNetwork(net, "best_model.bin")
 
-        if acc > best_acc:
-            best_acc = acc
-            cpp.Serializer.saveNetwork(net, "cpp_model.bin")
-            print("Saved trained model to cpp_model.bin")
+        optimizer.setLearningRate(optimizer.getLearningRate() * learning_rate_decay)
 
 def evaluate(net, X_val, y_val):
     correct = 0
-    for i in range(len(X_val)):
-        x = numpy_to_tensor(X_val[i:i+1])
-        pred = tensor_to_numpy(net.forward(x))
-        if np.argmax(pred) == y_val[i]:
-            correct += 1
-    accuracy = correct / len(X_val)
-    return accuracy
+    batch_size = 64
+
+    for i in range(0, len(X_val), batch_size):
+        X_batch = X_val[i:i+batch_size]
+
+        X_tensor = numpy_to_tensor(X_batch)
+        predictions = tensor_to_numpy(net.forward(X_tensor))
+
+        labels_batch = np.argmax(predictions, axis=1)
+
+        correct += np.sum(labels_batch == y_val[i:i+batch_size])
+
+    return correct / len(X_val)
 
 if __name__ == "__main__":
     train()

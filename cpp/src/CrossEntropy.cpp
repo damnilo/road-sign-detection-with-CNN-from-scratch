@@ -31,7 +31,7 @@ Tensor CrossEntropy::backward() {
         for(size_t j = 0; j < C; ++j){
             float t = targetsCache.at({i, j});
             float p = predictionsCache.at({i, j});
-            gradInput.at({i, j}) = (-t / (p + eps)) / (float) N; // Use max to avoid division by zero
+            gradInput.at({i, j}) = (-t / (p + eps)); // Use max to avoid division by zero
         }
     }
 

@@ -14,6 +14,7 @@ private:
     Tensor weights;
     Tensor biases;
     Tensor inputCache; // Cache the input for use in backward pass
+    Tensor colCache;   // Cache the im2col result for use in backward pass
     Tensor gradWeights;
     Tensor gradBiases;
 

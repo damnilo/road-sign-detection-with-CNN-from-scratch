@@ -6,7 +6,7 @@
 class Network
 {
 private:
-    std::vector<std::unique_ptr<Layer>> layers;
+    std::vector<std::shared_ptr<Layer>> layers;
 
 public:
     Network() = default;
@@ -15,7 +15,7 @@ public:
     Network(Network&&) = default; // Enable move constructor
     Network& operator=(Network&&) = default; // Enable move assignment
 
-    void addLayer(std::unique_ptr<Layer> layer);
+    void addLayer(std::shared_ptr<Layer> layer);
     Tensor forward(const Tensor& input);
     Tensor backward(const Tensor& gradOutput);
     std::vector<Tensor*> parameters();

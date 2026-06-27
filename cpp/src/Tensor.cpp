@@ -1,3 +1,4 @@
+#pragma omp parallel for
 #include "Tensor.h"
 
 #include <random>
@@ -194,14 +195,22 @@ Tensor Tensor::matmul(const Tensor& other) const {
         throw std::invalid_argument("Inner dimensions must match for matrix multiplication");
     }
 
-    Tensor result({shape[0], other.shape[1]});
-    for(size_t i = 0; i < shape[0]; ++i){
-        for(size_t j = 0; j < other.shape[1]; ++j){
-            float sum = 0.0f;
-            for(size_t k = 0; k < shape[1]; ++k){
-                sum += at({i, k}) * other.at({k, j});
+    size_t M = shape[0];
+    size_t K = shape[1];
+    size_t N = other.shape[1];
+
+    Tensor result({M, N});
+
+    const float* A = data.data();
+    const float* B = other.data.data();
+    float* C = result.data.data();
+
+    for(size_t i = 0; i < M; ++i){
+        for(size_t j = 0; j < N; ++j){
+            float a = A[i*K + j];
+            for(size_t k = 0; k < K; ++k){
+                C[i*N + j] += a * B[k*N + j];
             }
-            result.at({i, j}) = sum;
         }
     }
 
@@ -214,9 +223,13 @@ Tensor Tensor::transpose() const {
     }
 
     Tensor result({shape[1], shape[0]});
+
+    const float* src = data.data();
+    float* dst = result.data.data();
+
     for(size_t i = 0; i < shape[0]; ++i){
         for(size_t j = 0; j < shape[1]; ++j){
-            result.at({j, i}) = at({i, j});
+            dst[j * shape[0] + i] = src[i * shape[1] + j];
         }
     }
 
@@ -226,6 +239,18 @@ Tensor Tensor::transpose() const {
 Tensor Tensor::sum(size_t axis) const {
     if(axis >= shape.size()){
         throw std::invalid_argument("Axis out of bounds");
+    }
+
+    if(axis == 0){
+        Tensor result({shape[1]});
+
+        for(size_t j = 0; j < shape[0]; ++j){
+            for(size_t i = 0; i < shape[1]; ++i){
+                result[i] += data[j * shape[1] + i];
+            }
+        }
+
+        return result;
     }
 
     std::vector<size_t> newShape = shape;
@@ -260,9 +285,13 @@ Tensor Tensor::broadcastAdd(const Tensor& rowVector) const {
     }
 
     Tensor result(shape);
+
+    const float* a = data.data();
+    const float* b = rowVector.data.data();
+    float* c = result.data.data();
     for(size_t i = 0; i < shape[0]; ++i){
         for(size_t j = 0; j < shape[1]; ++j){
-            result.at({i, j}) = at({i, j}) + rowVector.at({j});
+            c[i * shape[1] + j] = a[i * shape[1] + j] + b[j];
         }
     }
 

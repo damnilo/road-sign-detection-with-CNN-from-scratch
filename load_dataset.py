@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os
 import cv2
 import numpy as np
@@ -72,6 +73,7 @@ def load_test_data():
         for img_file in os.listdir(path):
             img_path = os.path.join(path, img_file)
             img = cv2.imread(img_path)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img = cv2.resize(img, (IMG_WIDTH, IMG_HEIGHT))
             image_data.append(img)
             image_labels.append(i)
@@ -84,25 +86,28 @@ def load_test_data():
     image_data = image_data.transpose(0, 3, 1, 2) / 255.0
 
     train_idx, val_idx = stratified_group_split(track_ids, image_labels, test_size=0.2, random_state=42)
-    return image_data[train_idx], image_labels[train_idx], image_data[val_idx], image_labels[val_idx]
+    return (image_data[train_idx], image_labels[train_idx], image_data[val_idx], image_labels[val_idx])
 
 def stratified_group_split(X, y, test_size=0.2, random_state=42):
     rng = np.random.RandomState(random_state)
+    group_to_indices = defaultdict(list)
+
+    for idx, group in enumerate(X):
+        group_to_indices[group].append(idx)
+
+    all_groups = list(group_to_indices.keys())
+    rng.shuffle(all_groups)
+
+    n_val = int(len(all_groups) * test_size)
+    val_groups = set(all_groups[:n_val])
+
     train_idx = []
     val_idx = []
 
-    for c in np.unique(y):
-        class_mask = y == c
-        class_groups = np.unique(X[class_mask])
-        rng.shuffle(class_groups)
+    for g, i in group_to_indices.items():
+        if g in val_groups:
+            val_idx.extend(i)
+        else:
+            train_idx.extend(i)
 
-        n_val = int(len(class_groups) * test_size)
-        val_groups = set(class_groups[:n_val])
-
-        for idx in np.where(class_mask)[0]:
-            if X[idx] in val_groups:
-                val_idx.append(idx)
-            else:
-                train_idx.append(idx)
-
-    return np.asarray(train_idx, dtype=int), np.asarray(val_idx, dtype=int)
+    return (np.array(train_idx, dtype=int), np.array(val_idx, dtype=int))
