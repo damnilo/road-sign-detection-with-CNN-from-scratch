@@ -1,0 +1,7 @@
+cpp.cp314-win_amd64.pyd
+test.zip
+dataset/
+.venv/
+build/
+__pycache__/
+.vscode/
