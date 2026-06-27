@@ -101,8 +101,13 @@ Conv2D::Conv2D(size_t in_channels, size_t out_channels, size_t kernel_size, size
 
 Tensor Conv2D::forward(const Tensor& input) {
     inputCache = input; // Cache the input for backward pass
+
+    size_t inH = input.getShape()[2];
+    size_t inW = input.getShape()[3];
+    outHCache = (inH + 2 * padding - kernel_size) / stride + 1;
+    outWCache = (inW + 2 * padding - kernel_size) / stride + 1;
+
     Tensor colCache = im2col(input, kernel_size, stride, padding);
-    
     Tensor outCol = weights.matmul(colCache).broadcastAdd(biases);
 
     size_t N = inputCache.getShape()[0];
@@ -129,6 +134,8 @@ Tensor Conv2D::forward(const Tensor& input) {
 
 Tensor Conv2D::backward(const Tensor& gradOutput) {
     size_t N = inputCache.getShape()[0];
+
+    Tensor colCache = im2col(inputCache, kernel_size, stride, padding);
     Tensor dOutCol({N * outHCache * outWCache, out_channels});
     const std::vector<float>& src = gradOutput.raw();
     std::vector<float>& dst = dOutCol.raw();
@@ -146,7 +153,7 @@ Tensor Conv2D::backward(const Tensor& gradOutput) {
         }
     }
 
-    gradWeights = dOutCol.transpose().matmul(dOutCol);
+    gradWeights = dOutCol.transpose().matmul(colCache);
     gradBiases = dOutCol.sum(0);
 
     Tensor dCol = dOutCol.matmul(weights.transpose());

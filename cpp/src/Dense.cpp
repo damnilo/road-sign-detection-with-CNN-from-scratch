@@ -16,14 +16,14 @@ Dense::Dense(size_t inputSize, size_t outputSize)
 Tensor Dense::forward(const Tensor& input) {
     inputCache = input; // Cache the input for backward pass
 
-    size_t inputSize = input.getShape()[0];
+    size_t batch = input.getShape()[0];
     size_t features = input.getShape()[1];
 
     if(features != inputSize){
         throw std::invalid_argument("Input size does not match layer's input size");
     }
 
-    Tensor output({inputSize, outputSize});
+    Tensor output({batch, outputSize});
     output = input.matmul(weights.transpose()).broadcastAdd(biases);
     return output;
 }
