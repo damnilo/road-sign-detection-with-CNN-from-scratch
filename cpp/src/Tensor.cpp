@@ -1,4 +1,3 @@
-#pragma omp parallel for
 #include "Tensor.h"
 
 #include <random>
@@ -205,11 +204,12 @@ Tensor Tensor::matmul(const Tensor& other) const {
     const float* B = other.data.data();
     float* C = result.data.data();
 
+    #pragma omp parallel for
     for(size_t i = 0; i < M; ++i){
-        for(size_t j = 0; j < N; ++j){
+        for(size_t j = 0; j < K; ++j){
             float a = A[i*K + j];
-            for(size_t k = 0; k < K; ++k){
-                C[i*N + j] += a * B[k*N + j];
+            for(size_t k = 0; k < N; ++k){
+                C[i*N + k] += a * B[j*N + k];
             }
         }
     }
@@ -227,6 +227,7 @@ Tensor Tensor::transpose() const {
     const float* src = data.data();
     float* dst = result.data.data();
 
+    #pragma omp parallel for
     for(size_t i = 0; i < shape[0]; ++i){
         for(size_t j = 0; j < shape[1]; ++j){
             dst[j * shape[0] + i] = src[i * shape[1] + j];
@@ -261,18 +262,29 @@ Tensor Tensor::sum(size_t axis) const {
 
     std::vector<size_t> indices(shape.size(), 0);
     for(size_t i = 0; i < data.size(); ++i){
-        size_t flatIndex = flattenIndex(indices);
-        result.raw()[flatIndex] += data[i];
-
-        // Increment indices
+        size_t flatIndex = 0, multiplier = 1;
         for(int j = shape.size() - 1; j >= 0; --j){
             if(j == axis) continue;
-            indices[j]++;
-            if(indices[j] < shape[j]){
-                break;
-            } else {
-                indices[j] = 0;
+            size_t dimPos = (j > axis) ? j - 1 : j;
+        }
+        
+        std::vector<size_t> reduced;
+        for(size_t j = 0; j < shape.size(); ++j){
+            if(j != axis){
+                reduced.push_back(indices[j]);
             }
+        }
+        size_t fi = 0, m = 1;
+        for(int j = reduced.size() - 1; j >= 0; --j){
+            fi += reduced[j] * m;
+            m *= newShape[j];
+        }
+
+        result.raw()[fi] += data[i];
+        for(int j = shape.size() - 1; j >= 0; --j){
+            if(j == axis) continue;
+            if(++indices[j] < shape[j]) break;
+            indices[j] = 0;
         }
     }
 

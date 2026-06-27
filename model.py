@@ -56,14 +56,15 @@ def train():
     X_train = X_train.astype(np.float32)
     X_val = X_val.astype(np.float32)
     
-    mean = np.mean(X_train, axis=(0, 1, 2))
-    std = np.std(X_train, axis=(0, 1, 2))
+    mean = np.mean(X_train, axis=(0, 2, 3), keepdims=True)
+    std = np.std(X_train, axis=(0, 2, 3), keepdims=True)
 
     X_train = (X_train - mean) / std
     X_val = (X_val - mean) / std
 
     net, loss, optimizer = create_network()
 
+    val_acc = evaluate(net, X_val, y_val)
     params = net.parameters()
     grads = net.gradients()
 
@@ -93,18 +94,14 @@ def train():
             y_tensor = numpy_to_tensor(y_batch)
 
             predictions = net.forward(X_tensor)
-            print("aaa")
             loss_value = loss.forward(predictions, y_tensor)
-            print("bbb")
             epoch_loss += loss_value
             batches += 1
 
             grad_loss = loss.backward()
-            print("ccc")
             net.backward(grad_loss)
-            print("ddd")
+            clip_gradients(grads, clip_value=1.0)
             optimizer.update(params, grads)
-            print("eee")
         print("aaa")            
 
         avg_loss = epoch_loss / batches
@@ -117,6 +114,10 @@ def train():
             best_acc = val_acc
             cpp.Serialization.saveNetwork(net, "best_model.bin")
 
+        if best_acc >= 0.96:
+            print("Early stopping: Validation accuracy reached 96%")
+            break
+
         optimizer.setLearningRate(optimizer.getLearningRate() * learning_rate_decay)
 
 def evaluate(net, X_val, y_val):
@@ -125,13 +126,15 @@ def evaluate(net, X_val, y_val):
 
     for i in range(0, len(X_val), batch_size):
         X_batch = X_val[i:i+batch_size]
+        y_batch = y_val[i:i+batch_size]
 
         X_tensor = numpy_to_tensor(X_batch)
-        predictions = tensor_to_numpy(net.forward(X_tensor))
+        predictions = tensor_to_numpy(net.forward(X_tensor))        
 
         labels_batch = np.argmax(predictions, axis=1)
+        batch_correct = np.sum(labels_batch == y_batch)
 
-        correct += np.sum(labels_batch == y_val[i:i+batch_size])
+        correct += batch_correct
 
     return correct / len(X_val)
 

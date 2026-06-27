@@ -16,6 +16,7 @@ Tensor Conv2D::im2col(const Tensor& input, size_t kernel_size, size_t stride, si
     const std::vector<float>& inputData = input.raw();
     std::vector<float>& colData = col.raw();
 
+    #pragma omp parallel for
     for(size_t b = 0; b < batch_size; ++b){
         for(size_t i = 0; i < out_height; ++i){
             long hStart = static_cast<long>(i * stride) - static_cast<long>(padding);
@@ -60,6 +61,7 @@ Tensor Conv2D::col2im(const Tensor& col, const std::vector<size_t>& inputShape, 
     std::vector<float>& gi = gradInput.raw();
     const std::vector<float>& colData = col.raw();
 
+    #pragma omp parallel for
     for(size_t b = 0; b < batch_size; ++b){
         for(size_t i = 0; i < out_height; ++i){
             long hStart = static_cast<long>(i * stride) - static_cast<long>(padding);
@@ -116,6 +118,7 @@ Tensor Conv2D::forward(const Tensor& input) {
     std::vector<float>& dst = output.raw();
     const auto& outData = outCol.raw();
 
+    #pragma omp parallel for
     for(size_t b = 0; b < N; ++b){
         for(size_t i = 0; i < outHCache; ++i){
             for(size_t j = 0; j < outWCache; ++j){
@@ -138,6 +141,7 @@ Tensor Conv2D::backward(const Tensor& gradOutput) {
     const std::vector<float>& src = gradOutput.raw();
     auto& dOutData = dOutCol.raw();
 
+    #pragma omp parallel for
     for(size_t b = 0; b < N; ++b){
         for(size_t i = 0; i < outHCache; ++i){
             for(size_t j = 0; j < outWCache; ++j){

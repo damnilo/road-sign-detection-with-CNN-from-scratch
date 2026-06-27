@@ -1,5 +1,4 @@
 #include "Network.h"
-#include <iostream>
 
 void Network::addLayer(std::shared_ptr<Layer> layer) {
     layers.push_back(layer);
@@ -13,19 +12,11 @@ Tensor Network::forward(const Tensor& input) {
     return output;
 }
 
-Tensor Network::backward(const Tensor& gradOutput)
-{
+Tensor Network::backward(const Tensor& gradOutput) {
     Tensor grad = gradOutput;
-
-    for(int i = layers.size()-1; i >=0; --i)
-    {
-        std::cout << "Backward layer " << i << std::endl;
-
-        grad = layers[i]->backward(grad);
-
-        std::cout << "Finished layer " << i << std::endl;
+    for(auto it = layers.rbegin(); it != layers.rend(); ++it){
+        grad = (*it)->backward(grad);
     }
-
     return grad;
 }
 

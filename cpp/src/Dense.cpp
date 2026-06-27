@@ -16,14 +16,6 @@ Dense::Dense(size_t inputSize, size_t outputSize)
 
 Tensor Dense::forward(const Tensor& input)
 {
-    std::cout << "Dense forward\n";
-    std::cout << "input: "
-              << input.getShape()[0] << " "
-              << input.getShape()[1] << std::endl;
-
-    std::cout << "weights: "
-              << weights.getShape()[0] << " "
-              << weights.getShape()[1] << std::endl;
 
     inputCache = input;
 
