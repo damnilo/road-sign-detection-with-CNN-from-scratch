@@ -4,7 +4,6 @@ test.zip
 build/
 __pycache__/
 .vscode/
-CMakeLists.txt
 main.py
 best_model.bin
 cpp/bindings.cpp
