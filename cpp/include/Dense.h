@@ -1,15 +1,17 @@
 #pragma once
 #include "Layer.h"
 
+// Fully-connected (linear) layer: output = input @ weights + biases.
+// Expects 2D input of shape (N, inputSize); produces (N, outputSize).
 class Dense : public Layer
 {
 private:
     size_t inputSize;
     size_t outputSize;
 
-    Tensor weights;
-    Tensor biases;
-    Tensor inputCache; // Cache the input for use in backward pass
+    Tensor weights;     // Shape (inputSize, outputSize)
+    Tensor biases;      // Shape (outputSize,)
+    Tensor inputCache;  // Input from forward(), needed to compute gradWeights in backward()
     Tensor gradWeights;
     Tensor gradBiases;
 

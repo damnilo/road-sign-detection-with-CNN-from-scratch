@@ -1,3 +1,7 @@
+"""
+Functions for loading and preprocessing the GTSRB dataset.
+"""
+
 from collections import defaultdict
 import os
 import cv2
@@ -60,9 +64,19 @@ classes = {
 }
 
 def extract_track_id(filename):
-    return filename.split('_')[0]
+    """
+    Extracts the track ID from a GTSRB image filename.
+    """
+    return "_".join(filename.split("_")[:2])
 
-def load_test_data():
+def load_train_data():
+    """
+    Loads the training dataset, preprocesses the images,
+    and splits the data into training and validation sets.
+
+    Returns:
+        tuple: Training images, training labels, validation images, validation labels.
+    """
     image_data = []
     image_labels = []
     track_ids = []
@@ -89,25 +103,39 @@ def load_test_data():
     return (image_data[train_idx], image_labels[train_idx], image_data[val_idx], image_labels[val_idx])
 
 def stratified_group_split(X, y, test_size=0.2, random_state=42):
+    """
+    Splits the dataset into training and validation sets while keeping
+    images from the same recording track together.
+
+    Returns:
+        tuple: Indices for training and validation sets.
+    """
     rng = np.random.RandomState(random_state)
-    group_to_indices = defaultdict(list)
-
-    for idx, group in enumerate(X):
-        group_to_indices[group].append(idx)
-
-    all_groups = list(group_to_indices.keys())
-    rng.shuffle(all_groups)
-
-    n_val = int(len(all_groups) * test_size)
-    val_groups = set(all_groups[:n_val])
-
+    
     train_idx = []
     val_idx = []
 
-    for g, i in group_to_indices.items():
-        if g in val_groups:
-            val_idx.extend(i)
-        else:
-            train_idx.extend(i)
+    for cls in np.unique(y):
+        cls_idx = np.where(y == cls)[0]
+        group_idx = defaultdict(list)
+
+        for idx in cls_idx:
+            group_idx[X[idx]].append(idx)
+
+        groups = list(group_idx.keys())
+        rng.shuffle(groups)
+        n_val = max(1, int(round(len(groups) * test_size)))
+        n_val = min(n_val, len(groups) - 1) 
+        
+        val_groups = set(groups[:n_val])
+
+        for g, idx in group_idx.items():
+            if g in val_groups:
+                val_idx.extend(idx)
+            else:
+                train_idx.extend(idx)
+    
+    rng.shuffle(train_idx)
+    rng.shuffle(val_idx)
 
     return (np.array(train_idx, dtype=int), np.array(val_idx, dtype=int))

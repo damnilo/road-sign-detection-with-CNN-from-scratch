@@ -2,6 +2,10 @@
 #include <fstream>
 #include <stdexcept>
 
+// Binary format per file:
+//   [numLayers: size_t]
+//   for each parameter tensor (in Network::parameters() order):
+//     [numDims: size_t][shape: size_t * numDims][raw float data]
 void Serialization::saveNetwork(Network& network, const std::string& filename) {
     std::ofstream outFile(filename, std::ios::binary);
     if (!outFile) {
@@ -12,7 +16,6 @@ void Serialization::saveNetwork(Network& network, const std::string& filename) {
     size_t numLayers = network.numLayers();
     outFile.write(reinterpret_cast<const char*>(&numLayers), sizeof(numLayers));
 
-    // Save each layer's parameters
     for (Tensor* param : params) {
         const std::vector<size_t>& shape = param->getShape();
         size_t numDims = shape.size();
@@ -22,10 +25,12 @@ void Serialization::saveNetwork(Network& network, const std::string& filename) {
         const std::vector<float>& data = param->raw();
         size_t dataSize = data.size();
         outFile.write(reinterpret_cast<const char*>(data.data()), dataSize * sizeof(float));
-        
     }
 }
 
+// Reads parameters back in the exact same order they were written. Validates
+// that the loaded layer count and each tensor's shape match the network passed
+// in — this is the safety check that catches a mismatched create_network() call.
 void Serialization::loadNetwork(Network& network, const std::string& filename) {
     std::ifstream inFile(filename, std::ios::binary);
     if (!inFile) {
@@ -53,5 +58,4 @@ void Serialization::loadNetwork(Network& network, const std::string& filename) {
         size_t dataSize = data.size();
         inFile.read(reinterpret_cast<char*>(data.data()), dataSize * sizeof(float));
     }
-
 }

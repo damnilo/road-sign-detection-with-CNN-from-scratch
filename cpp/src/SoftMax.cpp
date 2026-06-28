@@ -3,8 +3,10 @@
 #include <limits>
 #include <algorithm>
 
+// Numerically-stable softmax: subtract the per-row max before exponentiating
+// to avoid overflow, then normalize by the row sum.
 Tensor SoftMax::forward(const Tensor& input) {
-    size_t N = input.getShape()[0], C = input.getShape()[1]; // Assuming input is 2D (N, C)
+    size_t N = input.getShape()[0], C = input.getShape()[1];
     Tensor output({N, C});
 
     for(size_t i = 0; i < N; ++i){
@@ -25,12 +27,16 @@ Tensor SoftMax::forward(const Tensor& input) {
         }
     }
 
-    outputCache = output; // Cache the output for backward pass
+    outputCache = output;
     return output;
 }
 
+// Standard softmax Jacobian-vector product:
+//   dL/dInput_j = p_j * (dL/dOutput_j - sum_k(p_k * dL/dOutput_k))
+// where p is the cached softmax output from forward(). This correctly accounts
+// for every output depending on every input (softmax's outputs aren't independent).
 Tensor SoftMax::backward(const Tensor& gradOutput) {
-    size_t N = gradOutput.getShape()[0], C = gradOutput.getShape()[1]; // Assuming gradOutput is 2D (N, C)
+    size_t N = gradOutput.getShape()[0], C = gradOutput.getShape()[1];
     Tensor gradInput({N, C});
 
     for(size_t i = 0; i < N; ++i){

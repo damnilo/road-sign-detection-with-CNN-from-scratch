@@ -4,6 +4,7 @@ void Network::addLayer(std::shared_ptr<Layer> layer) {
     layers.push_back(layer);
 }
 
+// Forward pass: each layer's output feeds directly into the next.
 Tensor Network::forward(const Tensor& input) {
     Tensor output = input;
     for(auto& layer : layers){
@@ -12,6 +13,8 @@ Tensor Network::forward(const Tensor& input) {
     return output;
 }
 
+// Backward pass: walks layers in reverse, since gradients flow from the loss
+// back toward the input — mirror image of forward().
 Tensor Network::backward(const Tensor& gradOutput) {
     Tensor grad = gradOutput;
     for(auto it = layers.rbegin(); it != layers.rend(); ++it){
@@ -20,6 +23,8 @@ Tensor Network::backward(const Tensor& gradOutput) {
     return grad;
 }
 
+// Flattens every layer's parameters() into one list, preserving layer order —
+// this order must match gradients()'s order exactly, since the optimizer zips them together.
 std::vector<Tensor*> Network::parameters() {
     std::vector<Tensor*> params;
     for(auto& layer : layers){

@@ -4,8 +4,11 @@
 MaxPool2D::MaxPool2D(size_t pool_size, size_t stride)
     : pool_size(pool_size), stride(stride) {}
 
+// For every output position, scans its (pool_size x pool_size) window and keeps
+// the max value, recording which input index it came from — this index is the
+// only thing backward() needs to route gradients correctly.
 Tensor MaxPool2D::forward(const Tensor& input) {
-    inputShapeCache = input.getShape(); // Cache the original shape for backward pass
+    inputShapeCache = input.getShape();
 
     size_t batch_size = input.getShape()[0];
     size_t channels = input.getShape()[1];
@@ -16,8 +19,8 @@ Tensor MaxPool2D::forward(const Tensor& input) {
     size_t out_width = (width - pool_size) / stride + 1;
 
     Tensor output({batch_size, channels, out_height, out_width});
-    maxIndicesCache.assign(output.size(), 0); // Initialize max indices cach
-    
+    maxIndicesCache.assign(output.size(), 0);
+
     const std::vector<float>& inputData = input.raw();
     size_t outputIndex = 0;
 
@@ -44,7 +47,7 @@ Tensor MaxPool2D::forward(const Tensor& input) {
                     }
 
                     output[outputIndex] = maxVal;
-                    maxIndicesCache[outputIndex] = maxIndex;
+                    maxIndicesCache[outputIndex] = maxIndex; // Remember the winning input position
                     ++outputIndex;
                 }
             }
@@ -54,11 +57,14 @@ Tensor MaxPool2D::forward(const Tensor& input) {
     return output;
 }
 
+// Routes each output gradient back to exactly the input position that produced
+// the max in forward() — every non-max position in the window gets zero gradient.
+// Uses += rather than = in case pooling windows ever overlap (stride < pool_size).
 Tensor MaxPool2D::backward(const Tensor& gradOutput) {
-    Tensor gradInput = Tensor::zeros(inputShapeCache); // Initialize gradient input tensor with zeros
+    Tensor gradInput = Tensor::zeros(inputShapeCache);
     for(size_t i = 0; i < gradOutput.size(); ++i) {
         size_t maxIndex = maxIndicesCache[i];
-        gradInput.raw()[maxIndex] += gradOutput.raw()[i]; // Accumulate gradients
+        gradInput.raw()[maxIndex] += gradOutput.raw()[i];
     }
 
     return gradInput;
